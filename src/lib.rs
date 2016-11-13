@@ -1,5 +1,6 @@
+pub use std::net::UdpSocket;
 use std::{str, thread};
-use std::net::{SocketAddr, UdpSocket};
+use std::net::SocketAddr;
 
 pub fn socket (address: SocketAddr) -> UdpSocket {
   let attempt = UdpSocket::bind(address);
@@ -51,7 +52,7 @@ fn receive (socket: UdpSocket) -> String {
 }
 
 fn format (buffer: [u8; 2048], amount: usize, source: SocketAddr) -> String {
-  let body = str::from_utf8(&buffer[0..amount]).unwrap_or("{{}}");
+  let body = str::from_utf8(&buffer[0..amount]).unwrap_or("{}");
   format!("{{\"src\":\"{}\",\"msg\":{}}}", source.ip(), body)
 }
 
