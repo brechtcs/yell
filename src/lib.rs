@@ -1,8 +1,10 @@
-pub use std::net::UdpSocket;
+extern crate mio;
+
+pub use mio::udp::UdpSocket;
 use std::{str, thread};
 use std::net::SocketAddr;
 
-pub fn socket (address: SocketAddr) -> UdpSocket {
+pub fn open (address: &SocketAddr) -> UdpSocket {
   let attempt = UdpSocket::bind(address);
   let socket;
 
@@ -14,41 +16,67 @@ pub fn socket (address: SocketAddr) -> UdpSocket {
   socket
 }
 
-pub fn send (socket: &UdpSocket, message: Vec<u8>, source: SocketAddr) {
+pub fn send (socket: &UdpSocket, message: Vec<u8>, source: &SocketAddr) {
   socket.set_broadcast(true).unwrap();
 
-  let result = socket.send_to(&message, source);
+  let result = socket.send_to(&message, &source);
   drop(socket);
 
   match result {
     Err(e) => panic!("Send error: {}", e),
-    Ok(amount) => println!("Sent {} bytes to {}", amount, socket.local_addr().unwrap())
+    Ok(amount) => println!("Sent {} bytes to {}", amount.unwrap(), socket.local_addr().unwrap())
   }
 }
 
-pub fn listen (socket: UdpSocket) -> thread::JoinHandle<String> {
-  let handle = thread::spawn(move || {
-    receive(socket)
-  });
-
-  handle
+pub fn listen (socket: UdpSocket) -> Client {
+  Client {
+    socket: socket
+  }
 }
 
-fn receive (socket: UdpSocket) -> String {
+pub struct Client {
+  socket: UdpSocket
+}
+
+impl Iterator for Client {
+  type Item = String;
+
+  fn next(&mut self) -> Option<String> {
+    let message: String;
+
+    loop {
+      match self.socket.try_clone() {
+        Err(why) => panic!("Socket error: {}", why),
+        Ok(socket) => {
+          match receive(socket) {
+            None => continue,
+            Some(msg) => {
+              message = msg;
+              break
+            }
+          }
+        }
+      }
+    }
+    Some(message)
+  }
+}
+
+fn receive (socket: UdpSocket) -> Option<String> {
   let mut buffer: [u8; 2048] = [0; 2048];
   let result = socket.recv_from(&mut buffer);
   drop(socket);
 
-  let data: String;
   match result {
-    Ok((amount, source)) => {
-      println!("Received {} bytes from {}", amount, source);
-      data = format(buffer, amount, source);
-    },
-    Err(e) => panic!("Receive error: {}", e)
+    Err(e) => panic!("Receive error: {}", e),
+    Ok(opt) => match opt {
+      None => None,
+      Some((amount, source)) => {
+        println!("Received {} bytes from {}", amount, source);
+        Some(format(buffer, amount, source))
+      }
+    }
   }
-
-  data
 }
 
 fn format (buffer: [u8; 2048], amount: usize, source: SocketAddr) -> String {
@@ -63,18 +91,20 @@ mod test {
   use super::*;
 
   #[test]
-  fn run_socket() {
+  fn single_message() {
     let local = Ipv4Addr::new(127, 0, 0, 1);
     let address = SocketAddrV4::new(local, 1905);
-    let socket = socket(SocketAddr::V4(address));
+    let socket = open(&SocketAddr::V4(address));
 
     let message: Vec<u8> = "{\"dit\":\"dat\"}".to_string().into_bytes();
     let receiver = listen(socket.try_clone().unwrap());
     thread::sleep(time::Duration::from_millis(1500));
 
-    send(&socket, message, SocketAddr::V4(address));
-    let received = receiver.join().unwrap();
+    send(&socket, message, &SocketAddr::V4(address));
 
-    assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":{\"dit\":\"dat\"}}")
+    for received in receiver {
+      assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":{\"dit\":\"dat\"}}");
+      break
+    }
   }
 }
