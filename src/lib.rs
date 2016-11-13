@@ -1,25 +1,24 @@
 extern crate mio;
 
 pub use mio::udp::UdpSocket;
-use std::{str, thread};
+use std::str::{FromStr, from_utf8};
 use std::net::SocketAddr;
 
-pub fn open (address: &SocketAddr) -> UdpSocket {
-  let attempt = UdpSocket::bind(address);
-  let socket;
+pub fn open (address: &str) -> UdpSocket {
+  let target = SocketAddr::from_str(address).unwrap();
+  let attempt = UdpSocket::bind(&target);
 
   match attempt {
-    Err(e) => panic!("Could not bind to {}: {}", address, e),
-    Ok(s) => socket = s
+    Err(why) => panic!("Could not bind to {}: {}", address, why),
+    Ok(socket) => socket
   }
-
-  socket
 }
 
-pub fn send (socket: &UdpSocket, message: &str, source: &SocketAddr) {
+pub fn send (socket: &UdpSocket, message: &str, source: &str) {
   socket.set_broadcast(true).unwrap();
 
   let bytes = message.to_string().into_bytes();
+  let source = SocketAddr::from_str(source).unwrap();
   let result = socket.send_to(&bytes, &source);
   drop(socket);
 
@@ -29,17 +28,17 @@ pub fn send (socket: &UdpSocket, message: &str, source: &SocketAddr) {
   }
 }
 
-pub fn listen (socket: UdpSocket) -> Client {
-  Client {
+pub fn listen (socket: UdpSocket) -> Hub {
+  Hub {
     socket: socket
   }
 }
 
-pub struct Client {
+pub struct Hub {
   socket: UdpSocket
 }
 
-impl Iterator for Client {
+impl Iterator for Hub {
   type Item = String;
 
   fn next(&mut self) -> Option<String> {
@@ -81,26 +80,22 @@ fn receive (socket: UdpSocket) -> Option<String> {
 }
 
 fn format (buffer: [u8; 2048], amount: usize, source: SocketAddr) -> String {
-  let body = str::from_utf8(&buffer[0..amount]).unwrap_or("{}");
+  let body = from_utf8(&buffer[0..amount]).unwrap_or("{}");
   format!("{{\"src\":\"{}\",\"msg\":{}}}", source.ip(), body)
 }
 
 #[cfg(test)]
 mod test {
   use std::{thread, time};
-  use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
   use super::*;
 
   #[test]
   fn single_message() {
-    let local = Ipv4Addr::new(127, 0, 0, 1);
-    let address = SocketAddrV4::new(local, 1905);
-    let socket = open(&SocketAddr::V4(address));
-
+    let socket = open("127.0.0.1:1905");
     let receiver = listen(socket.try_clone().unwrap());
     thread::sleep(time::Duration::from_millis(1500));
 
-    send(&socket, "{\"dit\":\"dat\"}", &SocketAddr::V4(address));
+    send(&socket, "{\"dit\":\"dat\"}", "127.0.0.1:1905");
 
     for received in receiver {
       assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":{\"dit\":\"dat\"}}");
