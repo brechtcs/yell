@@ -90,15 +90,30 @@ mod test {
   use super::*;
 
   #[test]
-  fn single_message() {
+  fn short_message() {
     let socket = open("127.0.0.1:1905");
     let receiver = listen(socket.try_clone().unwrap());
     thread::sleep(time::Duration::from_millis(1500));
 
-    send(&socket, "{\"dit\":\"dat\"}", "127.0.0.1:1905");
+    send(&socket, "\"Hello localhost!\"", "127.0.0.1:1905");
 
     for received in receiver {
-      assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":{\"dit\":\"dat\"}}");
+      assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":\"Hello localhost!\"}");
+      break
+    }
+  }
+
+  #[test]
+  fn local_network() {
+    let address = "192.168.0.255:1905";
+    let socket = open(address);
+    let receiver = listen(socket.try_clone().unwrap());
+    thread::sleep(time::Duration::from_millis(1500));
+
+    send(&socket, "\"Hello network!\"", address);
+
+    for received in receiver {
+      assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":\"Hello network!\"}");
       break
     }
   }
