@@ -16,10 +16,11 @@ pub fn open (address: &SocketAddr) -> UdpSocket {
   socket
 }
 
-pub fn send (socket: &UdpSocket, message: Vec<u8>, source: &SocketAddr) {
+pub fn send (socket: &UdpSocket, message: &str, source: &SocketAddr) {
   socket.set_broadcast(true).unwrap();
 
-  let result = socket.send_to(&message, &source);
+  let bytes = message.to_string().into_bytes();
+  let result = socket.send_to(&bytes, &source);
   drop(socket);
 
   match result {
@@ -96,11 +97,10 @@ mod test {
     let address = SocketAddrV4::new(local, 1905);
     let socket = open(&SocketAddr::V4(address));
 
-    let message: Vec<u8> = "{\"dit\":\"dat\"}".to_string().into_bytes();
     let receiver = listen(socket.try_clone().unwrap());
     thread::sleep(time::Duration::from_millis(1500));
 
-    send(&socket, message, &SocketAddr::V4(address));
+    send(&socket, "{\"dit\":\"dat\"}", &SocketAddr::V4(address));
 
     for received in receiver {
       assert_eq!(received, "{\"src\":\"127.0.0.1\",\"msg\":{\"dit\":\"dat\"}}");
