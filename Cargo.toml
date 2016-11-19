@@ -1,6 +1,6 @@
 [package]
 name = "yell"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Brecht Savelkoul <brecht.savelkoul@gmail.com>"]
 description = "Simple UDP messaging"
 license = "MIT"

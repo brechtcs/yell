@@ -1,5 +1,5 @@
 use std::net::SocketAddr;
-use std::str::from_utf8;
+use std::{str, thread, time};
 use mio::udp::UdpSocket;
 
 pub struct Hub {
@@ -24,7 +24,7 @@ fn receive (socket: UdpSocket) -> Option<String> {
 }
 
 fn format (buffer: [u8; 2048], amount: usize, source: SocketAddr) -> String {
-  let body = from_utf8(&buffer[0..amount]).unwrap_or("{}");
+  let body = str::from_utf8(&buffer[0..amount]).unwrap_or("{}");
   json!({
     "src": (source.ip().to_string()),
     "msg": (body)
@@ -42,10 +42,13 @@ impl Iterator for Hub {
         Err(why) => panic!("Socket error: {}", why),
         Ok(socket) => {
           match receive(socket) {
-            None => continue,
             Some(msg) => {
               message = msg;
               break
+            },
+            None => {
+              thread::sleep(time::Duration::from_millis(1000));
+              continue
             }
           }
         }
