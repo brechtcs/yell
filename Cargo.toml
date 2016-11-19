@@ -1,9 +1,12 @@
 [package]
 name = "yell"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Brecht Savelkoul <brecht.savelkoul@gmail.com>"]
 description = "Simple UDP messaging"
 license = "MIT"
 
 [dependencies]
+get_if_addrs = "0.4"
+json_macros = "0.3"
 mio = "0.6"
+rustc-serialize = "0.3"
