@@ -1,9 +1,13 @@
 [package]
 name = "yell"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Brecht Savelkoul <brecht.savelkoul@gmail.com>"]
 description = "Simple UDP messaging"
 license = "MIT"
+
+[lib]
+name = "yell"
+path = "src/yell.rs"
 
 [dependencies]
 get_if_addrs = "0.4"
