@@ -12,7 +12,7 @@ impl Soapbox {
     let attempt = UdpSocket::bind(&target);
 
     match attempt {
-      Err(why) => panic!("Could not bind to {}: {}", address, why),
+      Err(why) => println!("Could not bind to {}: {}", address, why),
       Ok(socket) => Soapbox {
         socket: socket
       }
@@ -27,7 +27,7 @@ impl Soapbox {
     let result = self.socket.send_to(&bytes, &source);
 
     match result {
-      Err(e) => panic!("Send error: {}", e),
+      Err(e) => println!("Send error: {}", e),
       Ok(amount) => println!("Sent {} bytes to {}", amount.unwrap(), self.socket.local_addr().unwrap())
     }
   }
@@ -37,7 +37,7 @@ impl Soapbox {
     let result = self.socket.recv_from(&mut buffer);
 
     match result {
-      Err(e) => panic!("Receive error: {}", e),
+      Err(e) => println!("Receive error: {}", e),
       Ok(opt) => match opt {
         None => None,
         Some((amount, source)) => {
