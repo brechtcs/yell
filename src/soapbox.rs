@@ -7,15 +7,15 @@ pub struct Soapbox {
 }
 
 impl Soapbox {
-  pub fn new (address: &IpAddr, port: u16) -> Soapbox  {
+  pub fn new (address: &IpAddr, port: u16) -> Result<Soapbox, String>  {
     let target = SocketAddr::new(*address, port);
     let attempt = UdpSocket::bind(&target);
 
     match attempt {
-      Err(why) => println!("Could not bind to {}: {}", address, why),
-      Ok(socket) => Soapbox {
+      Err(why) => Err(format!("Could not bind to {}: {}", address, why)),
+      Ok(socket) => Ok(Soapbox {
         socket: socket
-      }
+      })
     }
   }
 
@@ -37,7 +37,7 @@ impl Soapbox {
     let result = self.socket.recv_from(&mut buffer);
 
     match result {
-      Err(e) => println!("Receive error: {}", e),
+      Err(_) => None,
       Ok(opt) => match opt {
         None => None,
         Some((amount, source)) => {
@@ -67,7 +67,7 @@ mod test {
 
   #[test]
   fn localhost() {
-    let socket = Soapbox::new(&IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1905);
+    let socket = Soapbox::new(&IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 1905).unwrap();
     socket.send("Hello localhost!");
 
     loop {
@@ -94,7 +94,7 @@ mod test {
             None => addr.ip
           };
 
-          let socket = Soapbox::new(&IpAddr::V4(target), 2304);
+          let socket = Soapbox::new(&IpAddr::V4(target), 2304).unwrap();
           socket.send("Hello network!");
 
           loop {
